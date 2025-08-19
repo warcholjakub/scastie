@@ -235,7 +235,21 @@ lazy val server = project
 
       sbt.IO.copyFile(treeSitterScalaHiglight, outputWasmDirectory / treeSitterScalaHiglightName)
       sbt.IO.move(treeSitterScalaWasm, outputWasmDirectory / treeSitterScalaOutputName)
-      sbt.IO.copyFile(treeSitterWasm, outputWasmDirectory / treeSitterOutputName)
+      
+      if (treeSitterWasm.exists()) {
+        sbt.IO.copyFile(treeSitterWasm, outputWasmDirectory / treeSitterOutputName)
+        s.log.success(s"Copied $treeSitterWasm to ${(outputWasmDirectory / treeSitterOutputName).getAbsolutePath}")
+      } else {
+        s.log.warn(s"$treeSitterWasm not found, attempting to install web-tree-sitter...")
+        val installWebTreeSitter: Seq[String] = shell :+ "npm install web-tree-sitter"
+        if ((installWebTreeSitter !) == 0 && treeSitterWasm.exists()) {
+          sbt.IO.copyFile(treeSitterWasm, outputWasmDirectory / treeSitterOutputName)
+          s.log.success(s"Installed and copied $treeSitterWasm")
+        } else {
+          s.log.warn("Could not install web-tree-sitter, but continuing build...")
+        }
+      }
+
       s.log.success(
         s"Copied $treeSitterScalaHiglight to ${(outputWasmDirectory / treeSitterScalaHiglightName).getAbsolutePath}"
       )
