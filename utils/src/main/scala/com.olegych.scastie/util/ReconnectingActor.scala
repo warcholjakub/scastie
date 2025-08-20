@@ -25,7 +25,10 @@ trait ActorReconnecting extends Actor with ActorLogging {
     if (reconnectInfo.isDefined) {
       tryReconnectCallback.foreach(_.cancel())
       tryReconnectCallback = Some(
-        context.system.scheduler.schedule(0.seconds, 10.seconds) {
+        context.system.scheduler.scheduleWithFixedDelay(
+          initialDelay = 0.seconds,
+          delay = 10.seconds
+        ) { () =>
           log.info("Reconnecting to server")
           tryConnect(context)
         }

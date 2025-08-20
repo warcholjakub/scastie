@@ -171,17 +171,17 @@ object CodeSnippets {
       .initialState(List.empty[SnippetSummary])
       .backend(new CodeSnippetsBackend(_))
       .renderPS(render)
-      .componentWillReceiveProps { delta =>
+      .componentDidUpdate { ctx =>
         val viewChangedToCodeSnippet =
-          delta.currentProps.view != View.CodeSnippets &&
-            delta.nextProps.view == View.CodeSnippets
+          ctx.prevProps.view != View.CodeSnippets &&
+            ctx.currentProps.view == View.CodeSnippets
 
         val loadProfile: Callback =
-          delta.backend.loadProfile0()
+          ctx.backend.loadProfile0()
 
         loadProfile.when_(viewChangedToCodeSnippet)
       }
-      .componentWillMount(_.backend.loadProfile0())
+      .componentDidMount(_.backend.loadProfile0())
       .configure(Reusability.shouldComponentUpdate)
       .build
 }

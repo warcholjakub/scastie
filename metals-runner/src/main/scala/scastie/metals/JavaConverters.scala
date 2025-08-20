@@ -22,9 +22,6 @@ object JavaConverters {
   extension (documentation: JEither[String, MarkupContent])
     def toDocstring = documentation.asScala.map(_.getValue).merge
 
-  extension (documentation: JEither[String, MarkedString])
-    def toHoverContent = documentation.asScala.map(_.getValue).merge
-
   extension (item: CompletionItem) def getDocstring = Option(item.getDocumentation).fold("")(_.toDocstring)
 
   extension (item: Hover)

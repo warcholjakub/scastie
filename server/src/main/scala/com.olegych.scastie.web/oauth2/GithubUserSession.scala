@@ -40,8 +40,8 @@ class GithubUserSession(system: ActorSystem) {
       _.toString(),
       (id: String) => Try { UUID.fromString(id) }
     )
-  implicit val sessionManager = new SessionManager[UUID](sessionConfig)
-  implicit val refreshTokenStorage = new ActorRefreshTokenStorage(system)
+  implicit val sessionManager: SessionManager[UUID] = new SessionManager[UUID](sessionConfig)
+  implicit val refreshTokenStorage: ActorRefreshTokenStorage = new ActorRefreshTokenStorage(system)
 
   private def readSessionsFile(): Vector[(UUID, User)] = {
     if (Files.exists(usersSessions)) {

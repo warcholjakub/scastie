@@ -7,7 +7,7 @@ import java.util.concurrent.atomic.AtomicLong
 import akka.actor.{Actor, ActorRef, Props, Stash}
 import akka.contrib.process._
 import akka.stream.scaladsl.{Flow, Framing, Sink, Source}
-import akka.stream.{ActorMaterializer, ActorMaterializerSettings, OverflowStrategy, ThrottleMode}
+import akka.stream.{Materializer, OverflowStrategy, ThrottleMode}
 import akka.util.ByteString
 import com.olegych.scastie.api.{ProcessOutput, ProcessOutputType}
 import org.slf4j.LoggerFactory
@@ -71,9 +71,7 @@ class ProcessActor(command: List[String], workingDir: Path, environment: Map[Str
       .map(_.utf8String)
   }
 
-  private implicit val materializer = ActorMaterializer(
-    ActorMaterializerSettings(context.system)
-  )
+  private implicit val materializer: Materializer = Materializer(context)
 
   private val outputId = new AtomicLong(0)
   override def receive: Receive = {
@@ -100,7 +98,12 @@ class ProcessActor(command: List[String], workingDir: Path, environment: Map[Str
 
       val stdin2: Source[ByteString, ActorRef] =
         Source
-          .actorRef[Input](Int.MaxValue, OverflowStrategy.fail)
+          .actorRef[Input](
+            completionMatcher = PartialFunction.empty,
+            failureMatcher = PartialFunction.empty,
+            bufferSize = Int.MaxValue,
+            overflowStrategy = OverflowStrategy.fail
+          )
           .map { case Input(line) => ByteString(line + "\n") }
 
       val ref: ActorRef =

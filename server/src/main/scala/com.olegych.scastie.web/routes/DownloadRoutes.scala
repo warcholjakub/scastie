@@ -14,7 +14,7 @@ import akka.util.Timeout
 import scala.concurrent.duration.DurationInt
 
 class DownloadRoutes(dispatchActor: ActorRef) {
-  implicit val timeout = Timeout(5.seconds)
+  implicit val timeout: Timeout = Timeout(5.seconds)
 
   val routes: Route =
     get {

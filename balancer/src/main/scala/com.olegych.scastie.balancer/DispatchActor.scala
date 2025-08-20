@@ -107,9 +107,14 @@ class DispatchActor(progressActor: ActorRef, statusActor: ActorRef)
 
   import context._
 
-  system.scheduler.schedule(0.seconds, 30.seconds) {
-    self ! Ping
-  }
+  system.scheduler.scheduleWithFixedDelay(
+    0.seconds,
+    30.seconds
+  )(
+    new Runnable {
+      def run(): Unit = self ! Ping
+    }
+  )
 
   override def preStart(): Unit = {
     statusActor ! SetDispatcher(self)

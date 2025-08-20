@@ -274,7 +274,7 @@ object Scastie {
       }
       .backend(ScastieBackend(scastieId, serverUrl, _))
       .renderPS(render)
-      .componentWillMount { current =>
+      .componentDidMount { current =>
         start(current.props, current.backend) >>
           setTitle(current.state, current.props) >>
           current.backend.closeNewSnippetModal >>
@@ -286,24 +286,23 @@ object Scastie {
           current.backend.unsubscribeGlobal
       }
       .componentDidUpdate { scope =>
-        setTitle(scope.prevState, scope.currentProps) >>
+        setTitle(scope.currentState, scope.currentProps) >>
           scope.modState(_.scalaJsScriptLoaded) >>
-          executeScalaJs(scastieId, scope.currentState)
-      }
-      .componentWillReceiveProps { scope =>
-        val next = scope.nextProps.snippetId
-        val current = scope.currentProps.snippetId
-        val state = scope.state
-        val backend = scope.backend
+          executeScalaJs(scastieId, scope.currentState) >>
+        {
+          val current = scope.currentProps.snippetId
+          val prev = scope.prevProps.snippetId
+          val backend = scope.backend
 
-        val loadSnippet: CallbackOption[Unit] =
-          for {
-            snippetId <- CallbackOption.option(next)
-            _ <- CallbackOption.require(next != current)
-            _ <- backend.loadSnippet(snippetId).toCBO >> backend.setView(View.Editor)
-          } yield ()
+          val loadSnippet: CallbackOption[Unit] =
+            for {
+              snippetId <- CallbackOption.option(current)
+              _ <- CallbackOption.require(prev != current)
+              _ <- backend.loadSnippet(snippetId).toCBO >> backend.setView(View.Editor)
+            } yield ()
 
-        setTitle(state, scope.nextProps) >> loadSnippet.toCallback
+          loadSnippet.toCallback
+        }
       }
       .configure(Reusability.shouldComponentUpdate)
       .build

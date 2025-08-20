@@ -98,7 +98,7 @@ object Instrument {
             Patch(openCurlyBrace, openCurlyBrace, instrumentationMapCode)
 
           instrumentationMapPatch +:
-            c.templ.stats
+            c.templ.body.stats
             .filter {
               case _: Term.EndMarker => false
               case _                 => true
@@ -139,7 +139,7 @@ object Instrument {
 
   private def hasMainMethod(source: Source): Boolean = {
     def hasMain(templ: Template): Boolean = {
-      templ.stats.exists {
+      templ.body.stats.exists {
         case q"def main(args: Array[String]): $_ = $_" => true
         case _                                         => false
       }
@@ -150,7 +150,7 @@ object Instrument {
 
     source.stats.exists {
       case c: Defn.Object if c.name.value == instrumentedObject =>
-        c.templ.stats.exists {
+        c.templ.body.stats.exists {
           case c: Defn.Class  => hasMain(c.templ) || hasApp(c.templ)
           case t: Defn.Trait  => hasMain(t.templ) || hasApp(t.templ)
           case o: Defn.Object => hasMain(o.templ) || hasApp(o.templ)

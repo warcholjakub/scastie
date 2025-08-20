@@ -24,9 +24,10 @@ trait MetalsHover extends MetalsClient {
         }
 
         view.state.wordAt(pos) match {
-          case range: SelectionRange => Tooltip(hoverF, range.from)
-            .setEnd(range.to)
-          case _ => Tooltip(hoverF, pos)
+          case range if range != null =>
+            Tooltip(hoverF, range.asInstanceOf[SelectionRange].from).setEnd(range.asInstanceOf[SelectionRange].to)
+          case _ =>
+            Tooltip(hoverF, pos)
         }
       }
     )

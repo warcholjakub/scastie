@@ -15,7 +15,7 @@ private[oauth2] case class SessionStorage(session: UUID, tokenHash: String, expi
 
 class ActorRefreshTokenStorage(system: ActorSystem) extends RefreshTokenStorage[UUID] {
   import system.dispatcher
-  implicit private val timeout = Timeout(10.seconds)
+  implicit private val timeout: Timeout = Timeout(10.seconds)
   private val impl = system.actorOf(Props(new ActorRefreshTokenStorageImpl()))
 
   def lookup(selector: String): Future[Option[RefreshTokenLookupResult[UUID]]] =

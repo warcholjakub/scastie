@@ -5,7 +5,7 @@ import com.olegych.scastie.client.ConsoleState
 import com.olegych.scastie.client.HTMLFormatter
 import com.olegych.scastie.client.View
 import japgolly.scalajs.react._
-import org.scalajs.dom.raw.HTMLDivElement
+import org.scalajs.dom.HTMLDivElement
 
 import vdom.all._
 

@@ -330,6 +330,7 @@ object ScaladexSearch {
             case ScalaTargetType.Scala3 => "_3"
             case ScalaTargetType.Scala2 => s"_${target.binaryScalaVersion}"
             case ScalaTargetType.JS => s"_sjs1_${target.binaryScalaVersion}"
+            case _ => ""
           }
           artifactId == artifact || artifactId == s"${artifact}${targetSuffix}"
         }
@@ -550,9 +551,16 @@ object ScaladexSearch {
       .initialState(SearchState.default)
       .backend(new ScaladexSearchBackend(_))
       .renderPS(render)
-      .componentWillReceiveProps { x =>
-        Callback.traverse(x.nextProps.librariesFrom.toList.sortBy(_._1.artifact)) { lib =>
-          x.backend.addArtifact((lib._2, lib._1.artifact, Some(lib._1.version)), lib._1.target, x.state, localOnly = true)
+      .componentDidUpdate { ctx =>
+        val prevLibs = ctx.prevProps.librariesFrom
+        val nextLibs = ctx.currentProps.librariesFrom
+
+        if (prevLibs != nextLibs) {
+          Callback.traverse(nextLibs.toList.sortBy(_._1.artifact)) { lib =>
+            ctx.backend.addArtifact((lib._2, lib._1.artifact, Some(lib._1.version)), lib._1.target, ctx.currentState, localOnly = true)
+          }
+        } else {
+          Callback.empty
         }
       }
       .configure(Reusability.shouldComponentUpdate)

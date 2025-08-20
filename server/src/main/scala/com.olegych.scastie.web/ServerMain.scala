@@ -3,7 +3,6 @@ package com.olegych.scastie.web
 import akka.actor.ActorSystem
 import akka.actor.Props
 import akka.http.scaladsl._
-import akka.stream.ActorMaterializer
 import ch.megard.akka.http.cors.scaladsl.CorsDirectives._
 import com.olegych.scastie.balancer._
 import com.olegych.scastie.util.ScastieFileUtil
@@ -47,7 +46,6 @@ object ServerMain {
 
     implicit val system: ActorSystem = ActorSystem("Web")
     import system.dispatcher
-    implicit val materializer: ActorMaterializer = ActorMaterializer()
 
     val github         = new Github()
     val session        = new GithubUserSession(system)
