@@ -30,15 +30,18 @@ class OAuth2Routes(github: Github, session: GithubUserSession)(
           parameter("home".?)(
             home =>
               optionalHeaderValueByType[Referer](()) { referrer =>
+                val redirectUrl = {
+                  val homeUri = "/"
+                  if (home.isDefined) homeUri
+                  else referrer.map(_.value).getOrElse(homeUri)
+                }
+                val state = github.generateState()
+                github.storeState(state, redirectUrl)
                 redirect(
                   Uri("https://github.com/login/oauth/authorize").withQuery(
                     Query(
                       "client_id" -> github.clientId,
-                      "state" -> {
-                        val homeUri = "/"
-                        if (home.isDefined) homeUri
-                        else referrer.map(_.value).getOrElse(homeUri)
-                      }
+                      "state" -> state
                     )
                   ),
                   TemporaryRedirect
@@ -63,20 +66,32 @@ class OAuth2Routes(github: Github, session: GithubUserSession)(
         },
         pathPrefix("callback") {
           pathEnd {
-            parameters("code", "state".?) { (code, state) =>
-              onSuccess(github.getUserWithOauth2(code)) { user =>
-                setSession(refreshable, usingCookies, session.addUser(user)) {
-                  setNewCsrfToken(checkHeader) { ctx =>
-                    ctx.complete(
-                      HttpResponse(
-                        status = TemporaryRedirect,
-                        headers = headers
-                          .Location(Uri(state.getOrElse("/"))) :: Nil,
-                        entity = HttpEntity.Empty
+            parameters("code", "state") { (code, receivedState) =>
+              github.validateAndConsumeState(receivedState) match {
+                case Some(redirectUrl) =>
+                  onSuccess(github.getUserDataWithOauth2(code)) { userData =>
+                    setSession(refreshable, usingCookies, session.addUserData(userData)) {
+                      setNewCsrfToken(checkHeader) { ctx =>
+                        ctx.complete(
+                          HttpResponse(
+                            status = TemporaryRedirect,
+                            headers = headers.Location(Uri(redirectUrl)) :: Nil,
+                            entity = HttpEntity.Empty
+                          )
+                        )
+                      }
+                    }
+                  }
+                case None =>
+                  complete(
+                    HttpResponse(
+                      status = StatusCodes.BadRequest,
+                      entity = HttpEntity(
+                        ContentTypes.`text/plain(UTF-8)`,
+                        "Invalid or expired OAuth state parameter"
                       )
                     )
-                  }
-                }
+                  )
               }
             }
           }

@@ -14,6 +14,8 @@ import com.typesafe.config.ConfigFactory
 import de.heikoseeberger.akkahttpcirce.FailFastCirceSupport
 
 import scala.concurrent.Future
+import java.security.SecureRandom
+import java.util.Base64
 
 case class AccessToken(access_token: String)
 
@@ -23,6 +25,23 @@ class Github(implicit system: ActorSystem) extends FailFastCirceSupport {
   implicit val userEncoder: Encoder[User] = deriveEncoder[User]
   implicit val userDecoder: Decoder[User] = deriveDecoder[User]
   implicit val readAccessToken: Decoder[AccessToken] = deriveDecoder[AccessToken]
+
+  private val secureRandom = new SecureRandom()
+  private val stateStorage = new OAuthStateStorage()
+
+  def generateState(): String = {
+    val bytes = new Array[Byte](32)
+    secureRandom.nextBytes(bytes)
+    Base64.getUrlEncoder.withoutPadding().encodeToString(bytes)
+  }
+
+  def storeState(state: String, redirectUrl: String): Unit = {
+    stateStorage.store(state, redirectUrl)
+  }
+
+  def validateAndConsumeState(state: String): Option[String] = {
+    stateStorage.validateAndConsume(state)
+  }
 
   private val config =
     ConfigFactory.load().getConfig("org.scastie.web.oauth2")
