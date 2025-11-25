@@ -29,7 +29,7 @@ trait MetalsDiagnostics extends MetalsClient with DebouncingCapabilities {
   def metalsDiags = onChangeCallback(debounce, (code, view) => ifSupported {
     makeRequest(toLSPRequest(code, 0), "diagnostics").map(maybeText =>
       parseMetalsResponse[Set[api.Problem]](maybeText).map { problems =>
-        val diags = problems.map(CodeEditor.problemToDiagnostic(_, view.state.doc)).toJSArray
+        val diags = problems.flatMap(CodeEditor.problemToDiagnostics(_, view.state.doc)).toJSArray
         view.update(js.Array(view.state.update(setDiagnostics(view.state, diags))))
       }
     )

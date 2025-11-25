@@ -124,7 +124,7 @@ object CodeEditor {
     })
   }
 
-  def problemToDiagnostic(problem: Problem, doc: Text): Diagnostic = {
+  def problemToDiagnostics(problem: Problem, doc: Text): Seq[Diagnostic] = {
     val maxLine = doc.lines.toInt
     val startLine = problem.line.get.max(1).min(maxLine)
     val endLine = problem.endLine.getOrElse(startLine).max(1).min(maxLine)
@@ -133,42 +133,73 @@ object CodeEditor {
     val startLineLength = startLineInfo.length.toInt
     val endLineLength = endLineInfo.length.toInt
 
-    val preciseRangeOpt: Option[(Double, Double)] =
-      if (problem.line.get > maxLine) {
-        val endPos = startLineInfo.to
-        Some((endPos, endPos))
-      } else {
-        (problem.startColumn, problem.endColumn) match {
-          case (Some(startCol), Some(endCol)) if startCol > 0 && endCol >= startCol =>
-            val clampedStart = (startCol min (startLineLength + 1)) max 1
-            val clampedEnd = (endCol min (endLineLength + 1)) max clampedStart
-            val startPos = startLineInfo.from + clampedStart - 1
-            val endPos = endLineInfo.from + clampedEnd - 1
-            Some((startPos, endPos))
-          case _ =>
-            None
-        }
-      }
-
-    val (startColumn, endColumn) = preciseRangeOpt match {
-      case Some((start, end)) =>
-        (start, end)
-      case None =>
-        (startLineInfo.from, endLineInfo.to)
+    val renderMessage = CallbackTo {
+      val wrapper = dom.document.createElement("pre")
+      wrapper.innerHTML = HTMLFormatter.format(problem.message)
+      wrapper
     }
 
-    Diagnostic(startColumn, problem.message, parseSeverity(problem.severity), endColumn)
-      .setRenderMessage(CallbackTo {
-        val wrapper = dom.document.createElement("pre")
-        wrapper.innerHTML = HTMLFormatter.format(problem.message)
-        wrapper
-      })
+    if (startLine == endLine) {
+      val preciseRangeOpt: Option[(Double, Double)] =
+        if (problem.line.get > maxLine) {
+          val endPos = startLineInfo.to
+          Some((endPos, endPos))
+        } else {
+          (problem.startColumn, problem.endColumn) match {
+            case (Some(startCol), Some(endCol)) if startCol > 0 && endCol >= startCol =>
+              val clampedStart = (startCol min (startLineLength + 1)) max 1
+              val clampedEnd = (endCol min (endLineLength + 1)) max clampedStart
+              val startPos = startLineInfo.from + clampedStart - 1
+              val endPos = (startLineInfo.from + clampedEnd - 1) min startLineInfo.to
+              Some((startPos, endPos))
+            case _ =>
+              None
+          }
+        }
+
+      val (startColumn, endColumn) = preciseRangeOpt match {
+        case Some((start, end)) => (start, end)
+        case None => (startLineInfo.from, startLineInfo.to)
+      }
+
+      Seq(Diagnostic(startColumn, problem.message, parseSeverity(problem.severity), endColumn)
+        .setRenderMessage(renderMessage))
+    } else {
+      /* Split multi-line diagnostics into per-line diagnostics for proper tooltip positioning */
+      (startLine to endLine).map { lineNum =>
+        val lineInfo = doc.line(lineNum)
+        val (from, to) = if (lineNum == startLine) {
+          problem.startColumn match {
+            case Some(col) if col > 0 =>
+              val clampedStart = (col min (lineInfo.length.toInt + 1)) max 1
+              val startPos = lineInfo.from + clampedStart - 1
+              (startPos, lineInfo.to)
+            case _ =>
+              (lineInfo.from, lineInfo.to)
+          }
+        } else if (lineNum == endLine) {
+          problem.endColumn match {
+            case Some(col) if col > 0 =>
+              val clampedEnd = (col min (lineInfo.length.toInt + 1)) max 1
+              val endPos = (lineInfo.from + clampedEnd - 1) min lineInfo.to
+              (lineInfo.from, endPos)
+            case _ =>
+              (lineInfo.from, lineInfo.to)
+          }
+        } else {
+          (lineInfo.from, lineInfo.to)
+        }
+
+        Diagnostic(from, problem.message, parseSeverity(problem.severity), to)
+          .setRenderMessage(renderMessage)
+      }
+    }
   }
 
   private def getDecorations(props: CodeEditor, doc: Text): js.Array[Diagnostic] = {
     val errors = props.compilationInfos
       .filter(prob => prob.line.isDefined)
-      .map(problemToDiagnostic(_, doc))
+      .flatMap(problemToDiagnostics(_, doc))
 
     val runtimeErrors = props.runtimeError.map(runtimeError => {
       val line = runtimeError.line.getOrElse(1).min(doc.lines.toInt)
