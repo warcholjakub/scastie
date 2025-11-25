@@ -55,6 +55,7 @@ object SbtProcess {
           Problem(
             Error,
             line = None,
+            endLine = None,
             startColumn = None,
             endColumn = None,
             message = message

@@ -102,20 +102,22 @@ object BspClient {
     val startColumn = Some(diag.getRange.getStart.getCharacter + 1)
     val endColumn = Some(diag.getRange.getEnd.getCharacter + 1)
 
-    val (mappedStartCol, mappedEndCol, mappedStartLine) = positionMapper match {
+    val (mappedStartCol, mappedEndCol, mappedStartLine, mappedEndLine) = positionMapper match {
       case Some(mapper) =>
         (
           startColumn.map(col => mapper.mapColumn(startLine, col)),
-          endColumn.map(col => mapper.mapColumn(startLine, col)),
-          mapper.mapLine(startLine)
+          endColumn.map(col => mapper.mapColumn(endLine, col)),
+          mapper.mapLine(startLine),
+          mapper.mapLine(endLine)
         )
       case None =>
-        (startColumn, endColumn, startLine + offset)
+        (startColumn, endColumn, startLine + offset, endLine + offset)
     }
 
     Problem(
       diagSeverityToSeverity(diag.getSeverity()),
       Option(mappedStartLine),
+      Option(mappedEndLine),
       mappedStartCol,
       mappedEndCol,
       diag.getMessage()
