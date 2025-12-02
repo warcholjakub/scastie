@@ -139,60 +139,42 @@ object CodeEditor {
       wrapper
     }
 
-    if (startLine == endLine) {
-      val preciseRangeOpt: Option[(Double, Double)] =
-        if (problem.line.get > maxLine) {
-          val endPos = startLineInfo.to
-          Some((endPos, endPos))
-        } else {
-          (problem.startColumn, problem.endColumn) match {
-            case (Some(startCol), Some(endCol)) if startCol > 0 && endCol >= startCol =>
-              val clampedStart = (startCol min (startLineLength + 1)) max 1
-              val clampedEnd = (endCol min (endLineLength + 1)) max clampedStart
-              val startPos = startLineInfo.from + clampedStart - 1
-              val endPos = (startLineInfo.from + clampedEnd - 1) min startLineInfo.to
-              Some((startPos, endPos))
-            case _ =>
-              None
-          }
-        }
+    /* Split multi-line diagnostics into per-line diagnostics for proper tooltip positioning */
+    (startLine to endLine).map { lineNum =>
+      val lineInfo = doc.line(lineNum)
+      val isStartLine = lineNum == startLine
+      val isEndLine = lineNum == endLine
 
-      val (startColumn, endColumn) = preciseRangeOpt match {
-        case Some((start, end)) => (start, end)
-        case None => (startLineInfo.from, startLineInfo.to)
+      val from = if (isStartLine) {
+        problem.startColumn match {
+          case Some(col) if col > 0 =>
+            val clampedStart = (col min (lineInfo.length.toInt + 1)) max 1
+            lineInfo.from + clampedStart - 1
+          case _ =>
+            lineInfo.from
+        }
+      } else {
+        lineInfo.from
       }
 
-      Seq(Diagnostic(startColumn, problem.message, parseSeverity(problem.severity), endColumn)
-        .setRenderMessage(renderMessage))
-    } else {
-      /* Split multi-line diagnostics into per-line diagnostics for proper tooltip positioning */
-      (startLine to endLine).map { lineNum =>
-        val lineInfo = doc.line(lineNum)
-        val (from, to) = if (lineNum == startLine) {
-          problem.startColumn match {
-            case Some(col) if col > 0 =>
-              val clampedStart = (col min (lineInfo.length.toInt + 1)) max 1
-              val startPos = lineInfo.from + clampedStart - 1
-              (startPos, lineInfo.to)
-            case _ =>
-              (lineInfo.from, lineInfo.to)
-          }
-        } else if (lineNum == endLine) {
+      val to = if (isEndLine) {
+        if (problem.line.get > maxLine && isStartLine) {
+          lineInfo.to
+        } else {
           problem.endColumn match {
             case Some(col) if col > 0 =>
               val clampedEnd = (col min (lineInfo.length.toInt + 1)) max 1
-              val endPos = (lineInfo.from + clampedEnd - 1) min lineInfo.to
-              (lineInfo.from, endPos)
+              (lineInfo.from + clampedEnd - 1) min lineInfo.to
             case _ =>
-              (lineInfo.from, lineInfo.to)
+              lineInfo.to
           }
-        } else {
-          (lineInfo.from, lineInfo.to)
         }
-
-        Diagnostic(from, problem.message, parseSeverity(problem.severity), to)
-          .setRenderMessage(renderMessage)
+      } else {
+        lineInfo.to
       }
+
+      Diagnostic(from, problem.message, parseSeverity(problem.severity), to)
+        .setRenderMessage(renderMessage)
     }
   }
 
