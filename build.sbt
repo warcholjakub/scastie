@@ -288,7 +288,7 @@ lazy val balancer = project
   .settings(
     libraryDependencies += akka("testkit") % Test
   )
-  .dependsOn(api.jvm(ScalaVersions.jvm), utils, storage, sbtRunner % Test)
+  .dependsOn(api.jvm(ScalaVersions.jvm), utils, storage, sbtRunner % Test, scalaCliRunner % Test)
 
 lazy val storage = project
   .settings(baseNoCrossSettings)
