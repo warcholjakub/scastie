@@ -49,7 +49,7 @@ import org.scastie.instrumentation.PositionMapper
 
 
 object BspClient {
-  case class BuildOutput(process: ProcessBuilder, diagnostics: List[Problem])
+  case class BuildOutput(process: ProcessBuilder, diagnostics: List[Problem], vprintOutput: List[String] = Nil)
 
   sealed trait Runner {
     def moduleName: String
@@ -132,6 +132,7 @@ class BspClient(coloredStackTrace: Boolean, workingDir: Path, compilationTimeout
 
   private implicit val defaultTimeout: FiniteDuration = FiniteDuration(10, TimeUnit.SECONDS)
   val diagnostics: AtomicReference[List[Diagnostic]] = new AtomicReference(Nil)
+  val vprintOutput: AtomicReference[List[String]] = new AtomicReference(Nil)
   val gson = new Gson
 
   private val log = Logger("BspClient")
@@ -293,7 +294,11 @@ class BspClient(coloredStackTrace: Boolean, workingDir: Path, compilationTimeout
       jvmRunEnvironment <- getJvmRunEnvironment(buildTarget.id)
       _ = println("Create process")
       process <- makeProcess(jvmRunEnvironment, buildTarget, isWorksheet)
-    } yield BuildOutput(process, diagnostics.getAndSet(Nil).map(diagnosticToProblem(isWorksheet, positionMapper)))
+    } yield BuildOutput(
+              process,
+              diagnostics.getAndSet(Nil).map(diagnosticToProblem(isWorksheet, positionMapper)),
+              vprintOutput.getAndSet(Nil)
+            )
   }
 
   // Kills the BSP connection and makes this object
@@ -348,7 +353,15 @@ class BspClient(coloredStackTrace: Boolean, workingDir: Path, compilationTimeout
       if (params.getReset()) diagnostics.set(incomingDiagnostics)
       else diagnostics.getAndUpdate(_ ++ incomingDiagnostics)
     }
-    def onBuildLogMessage(params: LogMessageParams): Unit = log.debug(s"LogMessageParams: $params")
+    def onBuildLogMessage(params: LogMessageParams): Unit = {
+      log.debug(s"LogMessageParams: $params")
+
+      val message = params.getMessage
+      if (message != null && !message.trim.isEmpty &&
+          (message.contains("[[syntax trees at end of") || vprintOutput.get.nonEmpty)) {
+        vprintOutput.getAndUpdate(_ :+ message)
+      }
+    }
     def onBuildShowMessage(params: ShowMessageParams): Unit =  log.debug(s"ShowMessageParams: $params")
     def onBuildTargetDidChange(params: DidChangeBuildTarget): Unit =  log.debug(s"DidChangeBuildTarget: $params")
     def onBuildTaskFinish(params: TaskFinishParams): Unit =  log.debug(s"TaskFinishParams: $params")
