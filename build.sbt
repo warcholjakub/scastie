@@ -309,7 +309,7 @@ lazy val yarnBin =
 
 lazy val client = project
   .enablePlugins(ScalablyTypedConverterExternalNpmPlugin)
-  .settings(baseNoCrossSettings)
+  .settings(baseNoCross3Settings)
   .settings(baseJsSettings)
   .settings(
     externalNpm := {
