@@ -14,6 +14,8 @@ case class ScalaCliServer[R, S](
 
   def currentTaskId: Option[TaskId] = mailbox.headOption.map(_.taskId)
   def currentConfig: ScalaCliInputs = mailbox.headOption.map(_.config).getOrElse(lastConfig)
+  def configAfterMailbox: ScalaCliInputs = mailbox.lastOption.map(_.config).getOrElse(lastConfig)
+  def willNeedReload(config: ScalaCliInputs): Boolean = configAfterMailbox.needsReload(config)
 
   def done(taskId: TaskId): ScalaCliServer[R, S] = {
     val (newMailbox, done) = mailbox.partition(_.taskId != taskId)

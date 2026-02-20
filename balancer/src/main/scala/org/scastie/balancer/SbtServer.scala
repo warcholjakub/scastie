@@ -15,6 +15,8 @@ case class SbtServer[R, S](
 
   def currentTaskId: Option[TaskId] = mailbox.headOption.map(_.taskId)
   def currentConfig: SbtInputs = mailbox.headOption.map(_.config).getOrElse(lastConfig)
+  def configAfterMailbox: SbtInputs = mailbox.lastOption.map(_.config).getOrElse(lastConfig)
+  def willNeedReload(config: SbtInputs): Boolean = configAfterMailbox.needsReload(config)
 
   def done(taskId: TaskId): SbtServer[R, S] = {
     val (newMailbox, done) = mailbox.partition(_.taskId != taskId)
